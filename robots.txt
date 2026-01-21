@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://www.z0necontrol.com/sitemap.xml
