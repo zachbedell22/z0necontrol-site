@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600">
+  <defs>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.85"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="600" fill="#09090b"/>
+  <g filter="url(#glow)" stroke="url(#g)" stroke-width="2" fill="none" stroke-linecap="round">
+    <rect x="80" y="110" width="260" height="120" rx="18"/>
+    <rect x="470" y="110" width="260" height="120" rx="18"/>
+    <rect x="860" y="110" width="260" height="120" rx="18"/>
+    <path d="M340 170H470"/>
+    <path d="M730 170H860"/>
+  </g>
+  <g font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto" fill="#e4e4e7">
+    <text x="110" y="155" font-size="18" font-weight="700">OBSERVE</text>
+    <text x="110" y="185" font-size="14" fill="#a1a1aa">Truth in (sensors + state)</text>
+
+    <text x="500" y="155" font-size="18" font-weight="700">DECIDE</text>
+    <text x="500" y="185" font-size="14" fill="#a1a1aa">Rules + guardrails (local)</text>
+
+    <text x="890" y="155" font-size="18" font-weight="700">RECORD</text>
+    <text x="890" y="185" font-size="14" fill="#a1a1aa">Events you can query/export</text>
+
+    <text x="80" y="520" font-size="28" font-weight="800" fill="#10b981">Truth &gt; Guessing</text>
+  </g>
+</svg>
