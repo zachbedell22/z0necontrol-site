@@ -17,42 +17,278 @@ type FormState = {
   budget: string;
   timeline: string;
   message: string;
-  company: string; // honeypot
+  company: string;
 };
 
-const DEFAULTS: FormState = {
+type RoiState = {
+  deploymentCost: number;
+  laborRate: number;
+  irrigationMode: "hand-feed" | "automated-mix" | "automated-fertigation";
+  irrigationPeople: number;
+  irrigationHoursPerEvent: number;
+  irrigationEventsPerDay: number;
+  irrigationManualHoursPerWeek: number;
+  cultivationDays: number;
+  dataPeople: number;
+  dataHoursPerCycle: number;
+  cyclesPerYear: number;
+  metrcPeople: number;
+  metrcHoursPerWeek: number;
+  monitoringPeople: number;
+  monitoringHoursPerDay: number;
+  annualEnergySpend: number;
+  laborCapturePercent: number;
+  energySavingsPercent: number;
+};
+
+const DEFAULT_FORM: FormState = {
   name: "",
   email: "",
   phone: "",
   org: "",
   location: "",
-  canopySize: "1–4 lights / 4x4-ish",
+  canopySize: "13–40 lights / multi-room",
   currentStack: "",
-  priority: "Irrigation + Monitoring",
-  budget: "$500–$1,500 pilot",
-  timeline: "This month",
+  priority: "Facility demo / ROI review",
+  budget: "$10,000+ commercial deployment",
+  timeline: "This quarter",
   message: "",
   company: "",
 };
 
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
+const DEFAULT_ROI: RoiState = {
+  deploymentCost: 10000,
+  laborRate: 30,
+  irrigationMode: "hand-feed",
+  irrigationPeople: 2,
+  irrigationHoursPerEvent: 1.5,
+  irrigationEventsPerDay: 2,
+  irrigationManualHoursPerWeek: 5,
+  cultivationDays: 300,
+  dataPeople: 2,
+  dataHoursPerCycle: 12,
+  cyclesPerYear: 6,
+  metrcPeople: 1,
+  metrcHoursPerWeek: 4,
+  monitoringPeople: 1,
+  monitoringHoursPerDay: 1.5,
+  annualEnergySpend: 180000,
+  laborCapturePercent: 50,
+  energySavingsPercent: 2,
+};
+
+const FUNCTIONAL_GROUPS = [
+  {
+    title: "Sense",
+    desc: "Bring room data into one normalized local truth layer.",
+    items: [
+      "MQTT telemetry ingestion",
+      "Facility / room / zone awareness",
+      "Sensor validation and quality flags",
+      "Temperature, RH, VPD and derived environmental metrics",
+      "Rolling environmental statistics and stability tracking",
+      "Sensor replay and simulated room nodes for deterministic testing",
+    ],
+  },
+  {
+    title: "Understand",
+    desc: "Convert raw readings into context instead of another wall of charts.",
+    items: [
+      "Grow Intelligence Engine (GIE)",
+      "Canonical unit normalization",
+      "Confidence-aware recommendations",
+      "Target ranges instead of fake perfect setpoints",
+      "Deterministic action planning",
+      "Decision Trace: why a recommendation happened",
+      "Replayable planning for debugging and regression review",
+    ],
+  },
+  {
+    title: "Control",
+    desc: "Separate intelligence from hardware actuation so safety stays deterministic.",
+    items: [
+      "Zone Brain controller service",
+      "Edge actuator agent",
+      "Command → acknowledgement lifecycle",
+      "Device heartbeat / health signals",
+      "Manual override path",
+      "Interlocks and conflicting-action constraints",
+      "Shadow Mode for monitor-first pilots",
+      "Lighting-plan compilation foundation",
+    ],
+  },
+  {
+    title: "Verify",
+    desc: "Prove what happened instead of assuming a command worked.",
+    items: [
+      "RootView low-level truth lane",
+      "CanopyView graphical truth surface",
+      "ColaView secondary overlay",
+      "Console monitor for telemetry / command / acknowledgement flow",
+      "Canonical verification scripts",
+      "Schema tests, export tests and GIE pipeline tests",
+      "Deterministic end-to-end data pipeline demonstrations",
+    ],
+  },
+  {
+    title: "Record",
+    desc: "Keep operational history local and queryable.",
+    items: [
+      "SQLite-backed local persistence",
+      "Durable local event outbox",
+      "Versioned EventEnvelope contract",
+      "Unknown-field preservation regression coverage",
+      "Queryable local cultivar memory",
+      "Structured event history designed for later reporting and audit",
+    ],
+  },
+  {
+    title: "Learn",
+    desc: "Connect cultivation outcomes to the room history that produced them.",
+    items: [
+      "Strain Intelligence database",
+      "Local Strain Cards UI",
+      "Grow-run and harvest outcome concepts",
+      "Cultivar / lineage information",
+      "Terpene and sensory information",
+      "Evidence-weighted cultivar knowledge",
+      "Explainable breeding-pairing utility",
+      "Provider / import framework for external strain information",
+    ],
+  },
+  {
+    title: "Share — only when approved",
+    desc: "Local first. Export is optional, scoped and redacted before data leaves the facility.",
+    items: [
+      "CloudExport arm",
+      "Granular opt-in export scopes",
+      "Edge-side data redaction",
+      "Durable queued export",
+      "Batch sender",
+      "MasterDB ingest endpoint and health check",
+      "Local pooled-learning development stack",
+    ],
+  },
+  {
+    title: "Integrate",
+    desc: "The operating layer is designed around adapters, not one manufacturer's hardware lock-in.",
+    items: [
+      "Normalized message contracts",
+      "Hardware-driver boundary",
+      "Legacy protocol bridge",
+      "MQTT transport abstraction",
+      "Dry-run actuator path for safe integration work",
+      "Architecture ready for lighting, irrigation, HVAC and third-party sensing adapters",
+    ],
+  },
+];
+
+const NEXT_FEATURES = [
+  "Production-certified Grower’s Choice / Mammoth and other fixture integrations",
+  "Finished automated fertigation with flow, leak and reservoir interlocks",
+  "Production HVAC / dehumidifier adapters",
+  "Metrc workflow automation where permitted by API and facility policy",
+  "Automatic yield and cultivar outcome ingestion",
+  "Camera / canopy analysis",
+  "Digital-twin and what-if simulation",
+  "Multi-site fleet management",
+  "Peak-demand / utility optimization",
+  "Fully autonomous recipe execution inside facility-approved limits",
+];
+
+function money(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(Number.isFinite(value) ? value : 0);
+}
+
+function number(value: number, digits = 1) {
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: digits,
+  }).format(Number.isFinite(value) ? value : 0);
 }
 
 export default function Page() {
-  const [form, setForm] = useState<FormState>(DEFAULTS);
+  const [form, setForm] = useState<FormState>(DEFAULT_FORM);
   const [status, setStatus] = useState<
     | { state: "idle" }
     | { state: "submitting" }
     | { state: "ok" }
     | { state: "error"; message: string }
   >({ state: "idle" });
+  const [roi, setRoi] = useState<RoiState>(DEFAULT_ROI);
 
   const canSubmit = useMemo(() => {
     const okName = form.name.trim().length >= 2;
     const okEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
     return okName && okEmail && status.state !== "submitting";
   }, [form.name, form.email, status.state]);
+
+  const roiResult = useMemo(() => {
+    const irrigationLabor =
+      roi.irrigationMode === "hand-feed"
+        ? roi.irrigationPeople *
+          roi.irrigationHoursPerEvent *
+          roi.irrigationEventsPerDay *
+          roi.cultivationDays *
+          roi.laborRate
+        : roi.irrigationPeople *
+          roi.irrigationManualHoursPerWeek *
+          52 *
+          roi.laborRate;
+
+    const cycleDataLabor =
+      roi.dataPeople *
+      roi.dataHoursPerCycle *
+      roi.cyclesPerYear *
+      roi.laborRate;
+
+    const metrcLabor =
+      roi.metrcPeople *
+      roi.metrcHoursPerWeek *
+      52 *
+      roi.laborRate;
+
+    const monitoringLabor =
+      roi.monitoringPeople *
+      roi.monitoringHoursPerDay *
+      roi.cultivationDays *
+      roi.laborRate;
+
+    const currentManualLabor =
+      irrigationLabor + cycleDataLabor + metrcLabor + monitoringLabor;
+
+    const recoverableLabor =
+      currentManualLabor * (roi.laborCapturePercent / 100);
+
+    const energyValue =
+      roi.annualEnergySpend * (roi.energySavingsPercent / 100);
+
+    const annualModeledValue = recoverableLabor + energyValue;
+    const netFirstYear = annualModeledValue - roi.deploymentCost;
+    const roiMultiple =
+      roi.deploymentCost > 0 ? annualModeledValue / roi.deploymentCost : 0;
+    const paybackMonths =
+      annualModeledValue > 0
+        ? (roi.deploymentCost / annualModeledValue) * 12
+        : 0;
+
+    return {
+      irrigationLabor,
+      cycleDataLabor,
+      metrcLabor,
+      monitoringLabor,
+      currentManualLabor,
+      recoverableLabor,
+      energyValue,
+      annualModeledValue,
+      netFirstYear,
+      roiMultiple,
+      paybackMonths,
+    };
+  }, [roi]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -64,509 +300,536 @@ export default function Page() {
       const res = await fetch("/api/beta", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          phone: form.phone,
-          org: form.org,
-          location: form.location,
-          canopySize: form.canopySize,
-          currentStack: form.currentStack,
-          priority: form.priority,
-          budget: form.budget,
-          timeline: form.timeline,
-          message: form.message,
-          company: form.company, // honeypot
-        }),
+        body: JSON.stringify(form),
       });
 
       const data = (await res.json()) as { ok: boolean; error?: string };
       if (!res.ok || !data.ok) {
-        setStatus({ state: "error", message: data.error ?? "Submission failed." });
+        setStatus({
+          state: "error",
+          message: data.error ?? "Submission failed.",
+        });
         return;
       }
 
       setStatus({ state: "ok" });
-      setForm((s) => ({ ...DEFAULTS, email: s.email, name: s.name }));
+      setForm((s) => ({ ...DEFAULT_FORM, email: s.email, name: s.name }));
     } catch {
       setStatus({ state: "error", message: "Network error. Try again." });
     }
   }
 
+  function setRoiNumber<K extends keyof RoiState>(key: K, raw: string) {
+    const parsed = Number(raw);
+    setRoi((current) => ({
+      ...current,
+      [key]: Number.isFinite(parsed) ? parsed : 0,
+    }));
+  }
+
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-50">
-      {/* Background */}
+    <main className="min-h-screen overflow-hidden bg-zinc-950 text-zinc-50">
       <div className="pointer-events-none fixed inset-0 -z-10">
         <Image
           src="/brand/hero-grid.svg"
           alt=""
           fill
           priority
-          className="object-cover opacity-90"
+          className="object-cover opacity-80"
         />
-        <div className="absolute -top-48 left-1/2 h-[560px] w-[560px] -translate-x-1/2 rounded-full bg-emerald-500/15 blur-3xl" />
-        <div className="absolute top-32 right-0 h-[440px] w-[440px] rounded-full bg-cyan-400/10 blur-3xl" />
+        <div className="absolute -top-56 left-1/2 h-[680px] w-[680px] -translate-x-1/2 rounded-full bg-emerald-500/15 blur-3xl" />
+        <div className="absolute top-40 right-[-160px] h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-3xl" />
       </div>
 
-      {/* Nav */}
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-zinc-950/70 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
-            <div className="grid h-9 w-9 place-items-center rounded-2xl border border-white/10 bg-white/5">
-              <Image src="/brand/logo.svg" alt="Z0neControl" width={26} height={26} />
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
+          <a href="#top" className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5">
+              <Image src="/brand/logo.svg" alt="Z0neControl" width={28} height={28} />
             </div>
             <div className="leading-tight">
               <div className="text-sm font-semibold tracking-wide">Z0neControl</div>
-              <div className="text-[11px] text-zinc-400">Steer • Prove • Protect</div>
+              <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                Prove · Steer · Protect
+              </div>
             </div>
-          </div>
+          </a>
 
-          <nav className="hidden items-center gap-6 text-sm text-zinc-300 md:flex">
-            <a className="hover:text-white" href="#why">
-              Why
-            </a>
-            <a className="hover:text-white" href="#how">
-              How
-            </a>
-            <a className="hover:text-white" href="#modules">
-              Modules
-            </a>
-            <a className="hover:text-white" href="#pilot">
-              Paid pilot
-            </a>
-            <a className="hover:text-white" href="#faq">
-              FAQ
-            </a>
+          <nav className="hidden items-center gap-5 text-sm text-zinc-400 lg:flex">
+            <a className="hover:text-white" href="#platform">Platform</a>
+            <a className="hover:text-white" href="#features">Functional features</a>
+            <a className="hover:text-white" href="#roi">ROI</a>
+            <a className="hover:text-white" href="#oem">OEM / strategic fit</a>
+            <a className="hover:text-white" href="#demo">Demo</a>
           </nav>
 
-          <div className="flex items-center gap-2">
-            <a
-              href={`mailto:${CONTACT_EMAIL}`}
-              className="hidden rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-zinc-200 hover:bg-white/10 md:inline-flex"
-            >
-              {CONTACT_EMAIL}
-            </a>
-            <a
-              href="#signup"
-              className="inline-flex rounded-xl bg-white px-3 py-2 text-sm font-semibold text-zinc-950 hover:bg-zinc-200"
-            >
-              Get Access
-            </a>
-          </div>
+          <a
+            href="#contact"
+            className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-200"
+          >
+            See the system
+          </a>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="mx-auto max-w-6xl px-4 pb-12 pt-14 md:pt-20">
-        <div className="grid gap-10 md:grid-cols-2 md:items-center">
+      <section id="top" className="mx-auto max-w-7xl px-4 pb-20 pt-16 md:pt-24">
+        <div className="grid gap-10 lg:grid-cols-[1.08fr_.92fr] lg:items-center">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-zinc-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              Local-first • Truthful logging • Safety rails
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/8 px-3 py-1.5 text-xs font-medium text-emerald-200">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              Demo-ready software architecture · real facility data path
             </div>
 
-            <h1 className="mt-4 text-4xl font-semibold tracking-tight md:text-5xl">
-              Control the room. <span className="text-zinc-300">Keep the truth.</span>
+            <h1 className="mt-6 max-w-4xl text-5xl font-semibold tracking-[-0.04em] md:text-7xl">
+              The operating layer for the grow room.
             </h1>
 
-            <p className="mt-4 max-w-xl text-base leading-relaxed text-zinc-300">
-              Z0neControl is a modular grow-room controller + logger built to keep working when cloud
-              dashboards don’t. Local data, real sensor truth, clean exports, and safety-first automation.
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">
+              Z0neControl coordinates sensing, decisions, equipment commands, verification,
+              room history and cultivation intelligence without forcing the facility into one
+              manufacturer&apos;s ecosystem.
             </p>
 
-            <ul className="mt-6 grid gap-3 text-sm text-zinc-200">
-              {[
-                "Runs even if Wi‑Fi/cloud dies (local-first by design)",
-                "Truthful status: reads real sensor/state data (no guess UI)",
-                "Modular control: irrigation, environment, lighting interfaces",
-                "Guardrails + manual override: automation with hard limits",
-                "Clean exports for analysis, reporting, and audits",
-              ].map((t) => (
-                <li key={t} className="flex gap-3">
-                  <span className="mt-1 h-1.5 w-1.5 flex-none rounded-full bg-emerald-400/90" />
-                  <span>{t}</span>
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-8 flex flex-wrap items-center gap-3">
+            <div className="mt-8 flex flex-wrap gap-3">
               <a
-                href="#signup"
-                className="inline-flex rounded-xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-zinc-200"
+                href="#demo"
+                className="rounded-xl bg-white px-5 py-3 text-sm font-semibold text-zinc-950 hover:bg-zinc-200"
               >
-                Request access
+                See what already works
               </a>
               <a
-                href="#how"
-                className="inline-flex rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
+                href="#roi"
+                className="rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold hover:bg-white/10"
               >
-                See how it works
+                Run the ROI
               </a>
             </div>
 
-            <p className="mt-3 text-xs text-zinc-500">
-              No spam. No “we sold your email to a humidifier cult.”
-            </p>
+            <div className="mt-9 grid max-w-3xl gap-3 sm:grid-cols-3">
+              <Metric label="Architecture" value="Local-first" note="Cloud optional" />
+              <Metric label="Control posture" value="Governed" note="Plan → gate → act → verify" />
+              <Metric label="Hardware posture" value="Vendor-neutral" note="Adapters, not lock-in" />
+            </div>
           </div>
 
           <div className="relative">
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/40">
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold text-zinc-200">RootView / CanopyView</div>
-                <div className="text-xs text-zinc-400">truth lane → polish lane</div>
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-white/10 bg-zinc-950 p-4 font-mono text-xs leading-relaxed text-zinc-200">
-                <div className="text-zinc-500">$ zonecontrol status</div>
-                <div className="mt-2 grid gap-1">
-                  <div>
-                    vpd_kpa: <span className="text-emerald-300">1.18</span>
-                  </div>
-                  <div>
-                    temp_f: <span className="text-emerald-300">78.2</span>
-                  </div>
-                  <div>
-                    rh_pct: <span className="text-emerald-300">62.1</span>
-                  </div>
-                  <div>
-                    irrigation: <span className="text-cyan-300">armed</span> (limits enforced)
-                  </div>
-                  <div>
-                    events: <span className="text-zinc-300">queued → exported → persisted</span>
-                  </div>
+            <div className="rounded-[32px] border border-white/10 bg-white/[0.045] p-5 shadow-2xl shadow-black/40 backdrop-blur">
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.18em] text-zinc-500">Live system shape</div>
+                  <div className="mt-1 font-semibold">Sense → Understand → Control → Verify</div>
                 </div>
-                <div className="mt-3 text-zinc-500"># no guesses, no vibes — just state</div>
+                <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200">
+                  local
+                </span>
               </div>
 
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                <MiniCard title="Local-first" desc="Room keeps running even when the internet gets stupid." />
-                <MiniCard title="Structured logs" desc="Events you can query, export, audit, learn from." />
-                <MiniCard title="Safety rails" desc="Hard limits, interlocks, lockouts, manual override." />
-                <MiniCard title="Modular control" desc="Start with irrigation + monitoring. Expand by need." />
+              <div className="mt-5 rounded-2xl border border-white/10 bg-black/30 p-4 font-mono text-xs leading-6 text-zinc-300">
+                <div className="text-zinc-500">$ zonecontrol review flower_room_1</div>
+                <div className="mt-3">
+                  temp_f <span className="text-emerald-300">78.2</span>
+                </div>
+                <div>rh_pct <span className="text-emerald-300">62.1</span></div>
+                <div>vpd_kpa <span className="text-emerald-300">1.18</span></div>
+                <div>recommendation <span className="text-cyan-300">bounded</span></div>
+                <div>authorization <span className="text-amber-300">policy gate</span></div>
+                <div>command <span className="text-zinc-100">acknowledged</span></div>
+                <div>event <span className="text-zinc-100">persisted</span></div>
+                <div className="mt-3 text-zinc-600"># no command is considered real until the system can prove it</div>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <MiniCard title="Truth first" text="Measured, commanded and acknowledged state stay distinct." />
+                <MiniCard title="Local resilience" text="The room is not designed around a permanent cloud dependency." />
+                <MiniCard title="Safety boundary" text="Intelligence recommends. Deterministic policy authorizes." />
+                <MiniCard title="Data ownership" text="Local history first; export is explicit and scoped." />
               </div>
             </div>
-
-            <div className="pointer-events-none absolute -inset-2 -z-10 rounded-[28px] bg-gradient-to-r from-emerald-500/10 via-cyan-400/10 to-white/5 blur-2xl" />
           </div>
         </div>
       </section>
 
-      {/* Why */}
-      <section id="why" className="mx-auto max-w-6xl px-4 py-14">
-        <SectionHeading
-          kicker="Why"
-          title="Grow rooms fail quietly. Your data shouldn’t."
-          subtitle="Most systems fail the same boring ways: flaky network, opaque logic, weird UI assumptions, logs that disappear. Z0neControl reduces surprises by making truth the first-class feature."
-        />
+      <section id="platform" className="border-y border-white/10 bg-white/[0.02]">
+        <div className="mx-auto max-w-7xl px-4 py-20">
+          <SectionHeading
+            kicker="Platform"
+            title="One room. One operational truth."
+            subtitle="Most cultivation stacks are a pile of controllers, apps, spreadsheets, hand-entered logs and tribal knowledge. Z0neControl is being built as the coordinating software layer above them."
+          />
 
-        <div className="mt-8 grid gap-4 md:grid-cols-4">
-          <StatCard title="Fewer mystery swings" desc="Know what happened, not what you think happened." />
-          <StatCard title="Faster troubleshooting" desc="CLI diagnostics stays brutally honest." />
-          <StatCard title="Less babysitting" desc="Automation with hard limits and clear behavior." />
-          <StatCard title="Better repeatability" desc="Exportable, queryable history for dialing in." />
-        </div>
-      </section>
-
-      {/* How */}
-      <section id="how" className="mx-auto max-w-6xl px-4 py-14">
-        <SectionHeading
-          kicker="How"
-          title="Observe → Decide → Record"
-          subtitle="A simple pipeline that survives real-world chaos."
-        />
-
-        <div className="mt-8 grid gap-6 md:grid-cols-2 md:items-center">
-          <div className="grid gap-4 md:grid-cols-3">
-            <StepCard step="01" title="Observe (Truth In)" desc="Sensor values + device states are source of truth." />
-            <StepCard step="02" title="Decide (Guardrails)" desc="Rules run locally with limits, interlocks, manual mode." />
-            <StepCard step="03" title="Record (Logs Out)" desc="Events are written locally and exported cleanly." />
-          </div>
-
-          <div className="relative">
-            <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5">
-              <Image
-                src="/brand/flow.svg"
-                alt="Z0neControl pipeline diagram"
-                width={1200}
-                height={600}
-                className="h-auto w-full opacity-95"
-              />
-            </div>
-            <div className="pointer-events-none absolute -inset-2 -z-10 rounded-[28px] bg-gradient-to-r from-emerald-500/10 via-cyan-400/10 to-white/5 blur-2xl" />
+          <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <PlatformCard number="01" title="Observe" text="Normalize real sensor and device data into one room model." />
+            <PlatformCard number="02" title="Decide" text="Use deterministic planning, confidence and cultivation context." />
+            <PlatformCard number="03" title="Act safely" text="Route commands through explicit interlocks, approvals and edge agents." />
+            <PlatformCard number="04" title="Prove" text="Record acknowledgement, observed result and durable history." />
           </div>
         </div>
       </section>
 
-      {/* Modules */}
-      <section id="modules" className="mx-auto max-w-6xl px-4 py-14">
+      <section id="features" className="mx-auto max-w-7xl px-4 py-20">
         <SectionHeading
-          kicker="Modules"
-          title="Modular by default"
-          subtitle="Start where the ROI is highest. Expand when it earns its keep."
+          kicker="Functional feature inventory"
+          title="A long list — because there is already a lot here."
+          subtitle="These are implemented or demo-functional software capabilities in the canonical build. Physical-equipment integrations are not called production-ready until they are bench-validated."
         />
 
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
-          <ModuleCard
-            title="Monitoring"
-            bullets={[
-              "Temp/RH/VPD, light levels, CO₂ (as applicable)",
-              "Alerts, trends, structured logs",
-              "Truth lane + clean dashboard lane",
-            ]}
-          />
-          <ModuleCard
-            title="Irrigation"
-            bullets={[
-              "Pumps / solenoids / schedules",
-              "Run-time caps + lockouts",
-              "Designed to prevent the classic ‘oops I flooded my room’ moment",
-            ]}
-          />
-          <ModuleCard
-            title="Environment"
-            bullets={[
-              "Humidification/dehumidification, fans, HVAC interfaces",
-              "Do-no-harm guardrails",
-              "Manual override always available",
-            ]}
-          />
-          <ModuleCard
-            title="Lighting interfaces"
-            bullets={[
-              "Relay / 0–10V / scheduling (depending on gear)",
-              "Safety interlocks + audit trail",
-              "Phase in control only after monitoring is validated",
-            ]}
-          />
+        <div className="mt-10 grid gap-4 lg:grid-cols-2">
+          {FUNCTIONAL_GROUPS.map((group) => (
+            <article
+              key={group.title}
+              className="rounded-3xl border border-white/10 bg-white/[0.035] p-6"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-semibold">{group.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">{group.desc}</p>
+                </div>
+                <span className="rounded-full border border-emerald-400/20 bg-emerald-400/8 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-200">
+                  functional
+                </span>
+              </div>
+              <ul className="mt-5 grid gap-2 text-sm text-zinc-300 sm:grid-cols-2">
+                {group.items.map((item) => (
+                  <li key={item} className="flex gap-2.5">
+                    <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-emerald-400" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          ))}
         </div>
 
-        <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 text-sm text-zinc-300">
-          <div className="font-semibold text-zinc-200">Why not just use the usual controllers?</div>
-          <ul className="mt-3 grid gap-2 md:grid-cols-2">
-            {[
-              "Local-first: keeps running when Wi‑Fi is trash",
-              "Truth lane vs polish lane: CLI stays honest, GUI stays clean",
-              "Structured event logs: not screenshots and vibes",
-              "Failsafe mindset: manual override always exists",
-            ].map((t) => (
-              <li key={t} className="flex gap-3">
-                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-cyan-300/90" />
-                <span>{t}</span>
+        <details className="mt-6 rounded-3xl border border-white/10 bg-black/20 p-6">
+          <summary className="cursor-pointer list-none font-semibold">
+            In integration / next — deliberately not marketed as finished
+          </summary>
+          <ul className="mt-5 grid gap-2 text-sm text-zinc-400 md:grid-cols-2">
+            {NEXT_FEATURES.map((item) => (
+              <li key={item} className="flex gap-2.5">
+                <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-amber-300" />
+                <span>{item}</span>
               </li>
             ))}
           </ul>
-          <div className="mt-4 text-xs text-zinc-500">
-            If your dashboard can’t tell you what happened when the internet died, it’s not a control system. It’s a mood ring.
+        </details>
+      </section>
+
+      <section id="roi" className="border-y border-white/10 bg-white/[0.02]">
+        <div className="mx-auto max-w-7xl px-4 py-20">
+          <SectionHeading
+            kicker="Business case"
+            title="The numbers have to make sense."
+            subtitle="This calculator intentionally starts with boring, defensible operating costs. It does not count yield improvement, crop-loss avoidance, nutrient savings, water savings, quality improvement or peak-demand optimization."
+          />
+
+          <div className="mt-10 grid gap-8 xl:grid-cols-[1.15fr_.85fr]">
+            <div className="rounded-3xl border border-white/10 bg-zinc-950 p-6">
+              <div className="grid gap-6">
+                <RoiSection title="1 · System and labor">
+                  <NumberInput label="Illustrative ZoneControl deployment cost" value={roi.deploymentCost} onChange={(v) => setRoiNumber("deploymentCost", v)} prefix="$" />
+                  <NumberInput label="Loaded labor rate" value={roi.laborRate} onChange={(v) => setRoiNumber("laborRate", v)} prefix="$" suffix="/hr" />
+                  <NumberInput label="Cultivation / operating days per year" value={roi.cultivationDays} onChange={(v) => setRoiNumber("cultivationDays", v)} suffix="days" />
+                </RoiSection>
+
+                <RoiSection title="2 · Irrigation / hand feeding">
+                  <label className="grid gap-1.5 text-sm">
+                    <span className="text-zinc-400">How are plants currently watered / fed?</span>
+                    <select
+                      value={roi.irrigationMode}
+                      onChange={(e) => setRoi((s) => ({ ...s, irrigationMode: e.target.value as RoiState["irrigationMode"] }))}
+                      className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 outline-none focus:border-emerald-400/40"
+                    >
+                      <option value="hand-feed">Hand-fed / hand-watered</option>
+                      <option value="automated-mix">Automated irrigation, manual mixing / checks</option>
+                      <option value="automated-fertigation">Automated fertigation</option>
+                    </select>
+                  </label>
+                  <NumberInput label="People involved" value={roi.irrigationPeople} onChange={(v) => setRoiNumber("irrigationPeople", v)} />
+                  {roi.irrigationMode === "hand-feed" ? (
+                    <>
+                      <NumberInput label="Hours per irrigation event" value={roi.irrigationHoursPerEvent} onChange={(v) => setRoiNumber("irrigationHoursPerEvent", v)} suffix="hrs" step="0.25" />
+                      <NumberInput label="Irrigation events per day" value={roi.irrigationEventsPerDay} onChange={(v) => setRoiNumber("irrigationEventsPerDay", v)} step="0.25" />
+                    </>
+                  ) : (
+                    <NumberInput label="Manual irrigation / mixing / checking hours per week" value={roi.irrigationManualHoursPerWeek} onChange={(v) => setRoiNumber("irrigationManualHoursPerWeek", v)} suffix="hrs/wk" step="0.5" />
+                  )}
+                </RoiSection>
+
+                <RoiSection title="3 · Harvest, yield and strain data">
+                  <NumberInput label="People entering / cleaning cycle data" value={roi.dataPeople} onChange={(v) => setRoiNumber("dataPeople", v)} />
+                  <NumberInput label="Hours per person, per cycle" value={roi.dataHoursPerCycle} onChange={(v) => setRoiNumber("dataHoursPerCycle", v)} suffix="hrs" step="0.5" />
+                  <NumberInput label="Cycles per year" value={roi.cyclesPerYear} onChange={(v) => setRoiNumber("cyclesPerYear", v)} step="0.5" />
+                </RoiSection>
+
+                <RoiSection title="4 · Metrc / compliance labor">
+                  <NumberInput label="People touching Metrc / compliance entry" value={roi.metrcPeople} onChange={(v) => setRoiNumber("metrcPeople", v)} />
+                  <NumberInput label="Hours per person, per week" value={roi.metrcHoursPerWeek} onChange={(v) => setRoiNumber("metrcHoursPerWeek", v)} suffix="hrs/wk" step="0.5" />
+                </RoiSection>
+
+                <RoiSection title="5 · Manual room monitoring">
+                  <NumberInput label="People checking / logging rooms" value={roi.monitoringPeople} onChange={(v) => setRoiNumber("monitoringPeople", v)} />
+                  <NumberInput label="Hours per person, per day" value={roi.monitoringHoursPerDay} onChange={(v) => setRoiNumber("monitoringHoursPerDay", v)} suffix="hrs/day" step="0.25" />
+                </RoiSection>
+
+                <RoiSection title="6 · Conservative capture assumptions">
+                  <NumberInput label="Manual-labor value recoverable with automation" value={roi.laborCapturePercent} onChange={(v) => setRoiNumber("laborCapturePercent", v)} suffix="%" step="5" />
+                  <NumberInput label="Annual lighting / HVAC / facility energy spend" value={roi.annualEnergySpend} onChange={(v) => setRoiNumber("annualEnergySpend", v)} prefix="$" step="1000" />
+                  <NumberInput label="Modeled energy optimization" value={roi.energySavingsPercent} onChange={(v) => setRoiNumber("energySavingsPercent", v)} suffix="%" step="0.5" />
+                </RoiSection>
+              </div>
+            </div>
+
+            <aside className="xl:sticky xl:top-24 xl:self-start">
+              <div className="rounded-3xl border border-emerald-400/20 bg-gradient-to-b from-emerald-400/10 to-white/[0.025] p-6">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200">
+                  Conservative model
+                </div>
+                <div className="mt-5 grid gap-3">
+                  <RoiLine label="Current irrigation labor" value={money(roiResult.irrigationLabor)} />
+                  <RoiLine label="Cycle data-entry labor" value={money(roiResult.cycleDataLabor)} />
+                  <RoiLine label="Metrc / compliance labor" value={money(roiResult.metrcLabor)} />
+                  <RoiLine label="Manual monitoring labor" value={money(roiResult.monitoringLabor)} />
+                  <RoiLine label="Current modeled manual labor" value={money(roiResult.currentManualLabor)} emphasis />
+                </div>
+
+                <div className="my-6 h-px bg-white/10" />
+
+                <div className="grid gap-3">
+                  <RoiLine label="Conservative recoverable labor value" value={money(roiResult.recoverableLabor)} />
+                  <RoiLine label="Conservative energy value" value={money(roiResult.energyValue)} />
+                  <RoiLine label="Modeled annual value" value={money(roiResult.annualModeledValue)} emphasis />
+                  <RoiLine label="Illustrative deployment cost" value={money(roi.deploymentCost)} />
+                </div>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                  <BigResult
+                    label="Value / cost"
+                    value={roiResult.roiMultiple > 0 ? `${number(roiResult.roiMultiple, 1)}×` : "—"}
+                  />
+                  <BigResult
+                    label="Modeled payback"
+                    value={roiResult.paybackMonths > 0 ? `${number(roiResult.paybackMonths, 1)} months` : "—"}
+                  />
+                  <BigResult
+                    label="First-year net value"
+                    value={money(roiResult.netFirstYear)}
+                  />
+                </div>
+
+                <p className="mt-6 text-xs leading-5 text-zinc-500">
+                  This is a planning model, not a guarantee. Change any assumption you disagree with.
+                  Yield gains, avoided crop loss, water / nutrient savings, quality improvements and demand
+                  management are intentionally excluded from the total above.
+                </p>
+              </div>
+            </aside>
           </div>
         </div>
       </section>
 
-      {/* Paid pilot */}
-      <section id="pilot" className="mx-auto max-w-6xl px-4 py-14">
-        <SectionHeading
-          kicker="Paid pilot"
-          title="Want a paid pilot? Good. So do we."
-          subtitle="We’re looking for a few serious operators. Paid pilot means faster build priority, tighter support, and measurable outcomes — not "
-            + "a never-ending ‘beta’ where everyone ghosts."
-        />
+      <section id="oem" className="mx-auto max-w-7xl px-4 py-20">
+        <div className="grid gap-8 lg:grid-cols-[.85fr_1.15fr] lg:items-start">
+          <SectionHeading
+            kicker="OEM / strategic fit"
+            title="Good hardware should not be trapped behind a generic controller."
+            subtitle="Z0neControl can sit above a manufacturer’s fixtures or equipment as the proprietary operating layer: room intelligence, coordination, auditability, local resilience and a path to whole-facility software."
+          />
 
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          <StatCard title="Phase 1" desc="Irrigation automation + core monitoring + logging." />
-          <StatCard title="Phase 2" desc="Environment control loops + safety interlocks." />
-          <StatCard title="Phase 3" desc="Steering-style rules/alerts based only on logged data." />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <MiniCard title="White-label / OEM" text="A manufacturer-branded operating layer without rebuilding the entire software stack from zero." />
+            <MiniCard title="Deep native integration" text="Make the manufacturer’s own hardware the best-supported layer while keeping third-party compatibility." />
+            <MiniCard title="Strategic pilot" text="Prove the platform in a real cultivation facility before expanding commercial scope." />
+            <MiniCard title="Acquisition path" text="If the product and channel fit is strong, the conversation can become bigger than a normal software vendor relationship." />
+          </div>
         </div>
       </section>
 
-      {/* Signup */}
-      <section id="signup" className="mx-auto max-w-6xl px-4 py-14">
+      <section id="demo" className="border-y border-white/10 bg-black/25">
+        <div className="mx-auto max-w-7xl px-4 py-20">
+          <SectionHeading
+            kicker="Demo-ready"
+            title="We would rather show it than describe it."
+            subtitle="The software/control architecture can already be demonstrated end-to-end with simulated sensing, planning, governed command flow, acknowledgement, persistence, cultivation intelligence and optional export."
+          />
+
+          <div className="mt-10 grid gap-4 md:grid-cols-3">
+            <DemoCard
+              title="Control loop"
+              text="Sensor → MQTT → Zone Brain → GIE → command → actuator agent → acknowledgement → monitor."
+            />
+            <DemoCard
+              title="Data loop"
+              text="Event → local outbox → redacted export → ingest → SQLite persistence → query after exit."
+            />
+            <DemoCard
+              title="Cultivation intelligence"
+              text="Local Strain Cards, grow-run context, evidence-weighted cultivar knowledge and explainable breeding utility."
+            />
+          </div>
+
+          <div className="mt-8 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03]">
+            <Image
+              src="/brand/flow.svg"
+              alt="Z0neControl operating flow"
+              width={1200}
+              height={600}
+              className="h-auto w-full opacity-95"
+            />
+          </div>
+        </div>
+      </section>
+
+      <section id="contact" className="mx-auto max-w-7xl px-4 py-20">
         <SectionHeading
-          kicker="Access"
-          title="Request access (and qualify yourself)"
-          subtitle="This form sends directly to our inbox. No account creation. No nonsense."
+          kicker="Facility / OEM conversation"
+          title="Bring the room, the hardware, or the numbers."
+          subtitle="We can walk through the current demo, model your facility’s ROI, or discuss an OEM / strategic fit."
         />
 
-        <div className="mt-8 grid gap-6 md:grid-cols-2">
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
-            <div className="text-sm font-semibold text-zinc-200">What happens next</div>
-            <ul className="mt-4 grid gap-2 text-sm text-zinc-300">
+        <div className="mt-10 grid gap-6 lg:grid-cols-[.78fr_1.22fr]">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-6">
+            <h3 className="text-lg font-semibold">What to bring</h3>
+            <ul className="mt-5 grid gap-3 text-sm text-zinc-300">
               {[
-                "We review your setup and priority.",
-                "We reply with a proposed wiring/control map.",
-                "If it’s a fit, we schedule a quick call and scope a pilot.",
-              ].map((t) => (
-                <li key={t} className="flex gap-3">
-                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-300/90" />
-                  <span>{t}</span>
+                "Current lighting / controller stack",
+                "Whether irrigation is automated or hand-fed",
+                "Room count / canopy scale",
+                "Time spent on yield / strain / cycle data entry",
+                "Metrc or compliance labor",
+                "Manual monitoring / logging burden",
+                "Any hardware you want ZoneControl to integrate with first",
+              ].map((item) => (
+                <li key={item} className="flex gap-3">
+                  <span className="mt-2 h-1.5 w-1.5 rounded-full bg-cyan-300" />
+                  <span>{item}</span>
                 </li>
               ))}
             </ul>
 
-            <div className="mt-6 text-sm font-semibold text-zinc-200">Contact</div>
-            <div className="mt-2 text-sm text-zinc-300">
-              <a className="underline decoration-white/20 hover:decoration-white/60" href={`mailto:${CONTACT_EMAIL}`}>
+            <div className="mt-7 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-400">
+              Direct contact:{" "}
+              <a className="text-zinc-100 underline decoration-white/20" href={`mailto:${CONTACT_EMAIL}`}>
                 {CONTACT_EMAIL}
               </a>
             </div>
+          </div>
 
-            <div className="mt-6 rounded-2xl border border-white/10 bg-zinc-950/60 p-4 text-xs text-zinc-400">
-              Tip: paid pilot partners get priority builds and faster module support. Free curiosity is welcome — but paid pilots get the rocket fuel.
+          <form onSubmit={handleSubmit} className="grid gap-4 rounded-3xl border border-white/10 bg-white/[0.035] p-6">
+            <div className="hidden">
+              <Input label="Company" value={form.company} onChange={(v) => setForm((s) => ({ ...s, company: v }))} />
             </div>
-          </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
-            <form onSubmit={handleSubmit} className="grid gap-3">
-              {/* Honeypot (hidden) */}
-              <div className="hidden">
-                <label className="grid gap-1">
-                  <span className="text-xs font-semibold text-zinc-300">Company</span>
-                  <input
-                    value={form.company}
-                    onChange={(e) => setForm((s) => ({ ...s, company: e.target.value }))}
-                    className="rounded-xl border border-white/10 bg-zinc-950/60 px-3 py-2 text-sm"
-                    autoComplete="off"
-                  />
-                </label>
-              </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input label="Name" value={form.name} onChange={(v) => setForm((s) => ({ ...s, name: v }))} placeholder="Your name" />
+              <Input label="Email" value={form.email} onChange={(v) => setForm((s) => ({ ...s, email: v }))} placeholder="you@company.com" />
+            </div>
 
-              <div className="grid gap-3 md:grid-cols-2">
-                <Input label="Name" value={form.name} onChange={(v) => setForm((s) => ({ ...s, name: v }))} placeholder="Your name" />
-                <Input label="Email" value={form.email} onChange={(v) => setForm((s) => ({ ...s, email: v }))} placeholder="you@domain.com" />
-              </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input label="Phone" value={form.phone} onChange={(v) => setForm((s) => ({ ...s, phone: v }))} placeholder="Optional" />
+              <Input label="Company / facility" value={form.org} onChange={(v) => setForm((s) => ({ ...s, org: v }))} placeholder="Organization" />
+            </div>
 
-              <div className="grid gap-3 md:grid-cols-2">
-                <Input label="Phone (optional)" value={form.phone} onChange={(v) => setForm((s) => ({ ...s, phone: v }))} placeholder="(###) ###‑####" />
-                <Input label="Org / brand" value={form.org} onChange={(v) => setForm((s) => ({ ...s, org: v }))} placeholder="Company / handle" />
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <Input label="Location" value={form.location} onChange={(v) => setForm((s) => ({ ...s, location: v }))} placeholder="City, state" />
-                <Select
-                  label="Canopy size"
-                  value={form.canopySize}
-                  onChange={(v) => setForm((s) => ({ ...s, canopySize: v }))}
-                  options={[
-                    "1–4 lights / 4x4-ish",
-                    "5–12 lights / small room",
-                    "13–40 lights / multi-room",
-                    "40+ lights / facility",
-                  ]}
-                />
-              </div>
-
-              <Input
-                label="Current controller / stack"
-                value={form.currentStack}
-                onChange={(v) => setForm((s) => ({ ...s, currentStack: v }))}
-                placeholder="TrolMaster / AC Infinity / DIY / none / etc."
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input label="Location" value={form.location} onChange={(v) => setForm((s) => ({ ...s, location: v }))} placeholder="City, state" />
+              <Select
+                label="Scale"
+                value={form.canopySize}
+                onChange={(v) => setForm((s) => ({ ...s, canopySize: v }))}
+                options={[
+                  "1–4 lights / small room",
+                  "5–12 lights / small commercial",
+                  "13–40 lights / multi-room",
+                  "40+ lights / facility",
+                  "Manufacturer / OEM",
+                ]}
               />
+            </div>
 
-              <div className="grid gap-3 md:grid-cols-2">
-                <Select
-                  label="Top priority"
-                  value={form.priority}
-                  onChange={(v) => setForm((s) => ({ ...s, priority: v }))}
-                  options={[
-                    "Irrigation + Monitoring",
-                    "Environment control loops",
-                    "Lighting control",
-                    "Just logging / analytics first",
-                  ]}
-                />
-                <Select
-                  label="Pilot budget"
-                  value={form.budget}
-                  onChange={(v) => setForm((s) => ({ ...s, budget: v }))}
-                  options={["$500–$1,500 pilot", "$1,500–$5,000 pilot", "$5,000+ (facility)", "Not sure yet"]}
-                />
-              </div>
+            <Input
+              label="Current controller / equipment stack"
+              value={form.currentStack}
+              onChange={(v) => setForm((s) => ({ ...s, currentStack: v }))}
+              placeholder="TrolMaster, AROYA, OEM lighting controller, hand-fed irrigation, etc."
+            />
 
-              <div className="grid gap-3 md:grid-cols-2">
-                <Select
-                  label="Timeline"
-                  value={form.timeline}
-                  onChange={(v) => setForm((s) => ({ ...s, timeline: v }))}
-                  options={["This month", "Next 1–2 months", "This quarter", "Just exploring"]}
-                />
-                <div />
-              </div>
-
-              <Textarea
-                label="Notes"
-                value={form.message}
-                onChange={(v) => setForm((s) => ({ ...s, message: v }))}
-                placeholder="Biggest pain point? What would success look like in 30 days?"
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Select
+                label="Reason for reaching out"
+                value={form.priority}
+                onChange={(v) => setForm((s) => ({ ...s, priority: v }))}
+                options={[
+                  "Facility demo / ROI review",
+                  "OEM / white-label discussion",
+                  "Strategic partnership",
+                  "Acquisition / investment conversation",
+                  "Pilot deployment",
+                  "Technical integration",
+                ]}
               />
+              <Select
+                label="Project size"
+                value={form.budget}
+                onChange={(v) => setForm((s) => ({ ...s, budget: v }))}
+                options={[
+                  "$2,500–$10,000 pilot",
+                  "$10,000+ commercial deployment",
+                  "Multi-room / facility scope",
+                  "OEM / strategic — not a normal project budget",
+                  "Not sure yet",
+                ]}
+              />
+            </div>
 
-              <button
-                type="submit"
-                disabled={!canSubmit}
-                className={cx(
-                  "mt-2 inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold",
-                  canSubmit ? "bg-white text-zinc-950 hover:bg-zinc-200" : "bg-white/20 text-zinc-300 cursor-not-allowed"
-                )}
-              >
-                {status.state === "submitting" ? "Submitting..." : "Request access"}
-              </button>
+            <Select
+              label="Timeline"
+              value={form.timeline}
+              onChange={(v) => setForm((s) => ({ ...s, timeline: v }))}
+              options={["This month", "Next 1–2 months", "This quarter", "Exploring strategic fit"]}
+            />
 
-              {status.state === "ok" && (
-                <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
-                  Sent. We’ll reply with a wiring/control map if it’s a fit.
-                </div>
-              )}
+            <Textarea
+              label="What should we know?"
+              value={form.message}
+              onChange={(v) => setForm((s) => ({ ...s, message: v }))}
+              placeholder="Biggest operational pain, hardware to integrate, or what you want to see in the demo."
+            />
 
-              {status.state === "error" && (
-                <div className="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
-                  {status.message}
-                </div>
-              )}
+            <button
+              type="submit"
+              disabled={!canSubmit}
+              className={`mt-1 rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                canSubmit
+                  ? "bg-white text-zinc-950 hover:bg-zinc-200"
+                  : "cursor-not-allowed bg-white/15 text-zinc-500"
+              }`}
+            >
+              {status.state === "submitting" ? "Sending…" : "Request demo / conversation"}
+            </button>
 
-              <div className="text-xs text-zinc-500">
-                This stores nothing on the site — it just emails your answers. (For now.)
+            {status.state === "ok" && (
+              <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+                Sent. We&apos;ll follow up directly.
               </div>
-            </form>
-          </div>
+            )}
+            {status.state === "error" && (
+              <div className="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
+                {status.message}
+              </div>
+            )}
+          </form>
         </div>
       </section>
 
-      {/* FAQ */}
-      <section id="faq" className="mx-auto max-w-6xl px-4 py-14">
-        <SectionHeading
-          kicker="FAQ"
-          title="Questions you’re already thinking"
-          subtitle="Short answers. No marketing fog machine."
-        />
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
-          <Faq q="Does it work without internet?" a="Yes. That’s the point. Cloud is optional." />
-          <Faq q="Is this a full controller replacement?" a="That’s the direction. We start modular and prove it in the room." />
-          <Faq q="What’s the recommended first phase?" a="Monitoring + irrigation automation (fast ROI, easy to validate safely)." />
-          <Faq q="Where does my data go?" a="Local by default. Export only when you choose." />
-        </div>
-      </section>
-
-      {/* Footer */}
       <footer className="border-t border-white/10">
-        <div className="mx-auto max-w-6xl px-4 py-10 text-sm text-zinc-400">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="grid h-9 w-9 place-items-center rounded-2xl border border-white/10 bg-white/5">
-                <Image src="/brand/logo.svg" alt="Z0neControl" width={26} height={26} />
-              </div>
-              <div>
-                <div className="font-semibold text-zinc-200">Z0neControl</div>
-                <div className="text-xs">Local-first grow control + logging</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <a className="hover:text-white" href={`mailto:${CONTACT_EMAIL}`}>
-                {CONTACT_EMAIL}
-              </a>
-              <a className="hover:text-white" href="#signup">
-                Access
-              </a>
-            </div>
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-10 text-sm text-zinc-500">
+          <div>
+            <div className="font-semibold text-zinc-200">Z0neControl</div>
+            <div className="mt-1 text-xs">Grow Room OS · local-first · vendor-neutral · governed control</div>
           </div>
-
-          <div className="mt-6 text-xs text-zinc-600">Built for rooms that don’t forgive mistakes. Also built for humans who want to sleep.</div>
+          <div className="text-xs">
+            Built to prove what happened before pretending the room is automated.
+          </div>
         </div>
       </footer>
     </main>
@@ -575,76 +838,118 @@ export default function Page() {
 
 function SectionHeading(props: { kicker: string; title: string; subtitle: string }) {
   return (
-    <div>
-      <div className="text-xs font-semibold uppercase tracking-widest text-zinc-500">{props.kicker}</div>
-      <h2 className="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">{props.title}</h2>
-      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-300">{props.subtitle}</p>
+    <div className="max-w-4xl">
+      <div className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">{props.kicker}</div>
+      <h2 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-5xl">{props.title}</h2>
+      <p className="mt-4 text-base leading-7 text-zinc-400">{props.subtitle}</p>
     </div>
   );
 }
 
-function MiniCard(props: { title: string; desc: string }) {
+function Metric(props: { label: string; value: string; note: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-      <div className="text-sm font-semibold text-zinc-200">{props.title}</div>
-      <div className="mt-1 text-xs text-zinc-400">{props.desc}</div>
+    <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+      <div className="text-xs uppercase tracking-wider text-zinc-500">{props.label}</div>
+      <div className="mt-2 font-semibold">{props.value}</div>
+      <div className="mt-1 text-xs text-zinc-500">{props.note}</div>
     </div>
   );
 }
 
-function StatCard(props: { title: string; desc: string }) {
+function MiniCard(props: { title: string; text: string }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-      <div className="text-sm font-semibold text-zinc-200">{props.title}</div>
-      <div className="mt-2 text-sm text-zinc-400">{props.desc}</div>
+    <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+      <div className="font-semibold">{props.title}</div>
+      <p className="mt-2 text-sm leading-6 text-zinc-400">{props.text}</p>
     </div>
   );
 }
 
-function StepCard(props: { step: string; title: string; desc: string }) {
+function PlatformCard(props: { number: string; title: string; text: string }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
-      <div className="text-xs font-semibold text-zinc-500">{props.step}</div>
-      <div className="mt-2 text-lg font-semibold text-zinc-100">{props.title}</div>
-      <div className="mt-2 text-sm leading-relaxed text-zinc-300">{props.desc}</div>
+    <article className="rounded-3xl border border-white/10 bg-zinc-950 p-6">
+      <div className="font-mono text-xs text-emerald-300">{props.number}</div>
+      <h3 className="mt-5 text-xl font-semibold">{props.title}</h3>
+      <p className="mt-3 text-sm leading-6 text-zinc-400">{props.text}</p>
+    </article>
+  );
+}
+
+function DemoCard(props: { title: string; text: string }) {
+  return (
+    <article className="rounded-3xl border border-white/10 bg-white/[0.035] p-6">
+      <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[11px] uppercase tracking-wider text-cyan-200">
+        demonstrable
+      </span>
+      <h3 className="mt-5 text-xl font-semibold">{props.title}</h3>
+      <p className="mt-3 text-sm leading-6 text-zinc-400">{props.text}</p>
+    </article>
+  );
+}
+
+function RoiSection(props: { title: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h3 className="text-sm font-semibold text-zinc-200">{props.title}</h3>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">{props.children}</div>
+    </section>
+  );
+}
+
+function NumberInput(props: {
+  label: string;
+  value: number;
+  onChange: (value: string) => void;
+  prefix?: string;
+  suffix?: string;
+  step?: string;
+}) {
+  return (
+    <label className="grid gap-1.5 text-sm">
+      <span className="text-zinc-400">{props.label}</span>
+      <div className="flex items-center rounded-xl border border-white/10 bg-white/5 focus-within:border-emerald-400/40">
+        {props.prefix && <span className="pl-3 text-zinc-500">{props.prefix}</span>}
+        <input
+          type="number"
+          min="0"
+          step={props.step ?? "1"}
+          value={props.value}
+          onChange={(e) => props.onChange(e.target.value)}
+          className="min-w-0 flex-1 bg-transparent px-3 py-2.5 outline-none"
+        />
+        {props.suffix && <span className="pr-3 text-xs text-zinc-500">{props.suffix}</span>}
+      </div>
+    </label>
+  );
+}
+
+function RoiLine(props: { label: string; value: string; emphasis?: boolean }) {
+  return (
+    <div className="flex items-end justify-between gap-4">
+      <span className="text-sm text-zinc-400">{props.label}</span>
+      <strong className={props.emphasis ? "text-base text-white" : "text-sm text-zinc-200"}>{props.value}</strong>
     </div>
   );
 }
 
-function ModuleCard(props: { title: string; bullets: string[] }) {
+function BigResult(props: { label: string; value: string }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
-      <div className="text-lg font-semibold text-zinc-100">{props.title}</div>
-      <ul className="mt-4 grid gap-2 text-sm text-zinc-300">
-        {props.bullets.map((b) => (
-          <li key={b} className="flex gap-3">
-            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-300/90" />
-            <span>{b}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function Faq(props: { q: string; a: string }) {
-  return (
-    <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
-      <div className="text-sm font-semibold text-zinc-200">{props.q}</div>
-      <div className="mt-2 text-sm text-zinc-300">{props.a}</div>
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+      <div className="text-xs uppercase tracking-wider text-zinc-500">{props.label}</div>
+      <div className="mt-2 text-2xl font-semibold tracking-tight">{props.value}</div>
     </div>
   );
 }
 
 function Input(props: { label: string; value: string; placeholder?: string; onChange: (v: string) => void }) {
   return (
-    <label className="grid gap-1">
-      <span className="text-xs font-semibold text-zinc-300">{props.label}</span>
+    <label className="grid gap-1.5">
+      <span className="text-xs font-semibold text-zinc-400">{props.label}</span>
       <input
-        className="rounded-xl border border-white/10 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-white/20"
         value={props.value}
         placeholder={props.placeholder}
         onChange={(e) => props.onChange(e.target.value)}
+        className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-sm outline-none placeholder:text-zinc-700 focus:border-white/20"
       />
     </label>
   );
@@ -652,13 +957,14 @@ function Input(props: { label: string; value: string; placeholder?: string; onCh
 
 function Textarea(props: { label: string; value: string; placeholder?: string; onChange: (v: string) => void }) {
   return (
-    <label className="grid gap-1">
-      <span className="text-xs font-semibold text-zinc-300">{props.label}</span>
+    <label className="grid gap-1.5">
+      <span className="text-xs font-semibold text-zinc-400">{props.label}</span>
       <textarea
-        className="min-h-[88px] resize-y rounded-xl border border-white/10 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-white/20"
         value={props.value}
         placeholder={props.placeholder}
         onChange={(e) => props.onChange(e.target.value)}
+        rows={5}
+        className="resize-y rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-sm outline-none placeholder:text-zinc-700 focus:border-white/20"
       />
     </label>
   );
@@ -666,17 +972,15 @@ function Textarea(props: { label: string; value: string; placeholder?: string; o
 
 function Select(props: { label: string; value: string; options: string[]; onChange: (v: string) => void }) {
   return (
-    <label className="grid gap-1">
-      <span className="text-xs font-semibold text-zinc-300">{props.label}</span>
+    <label className="grid gap-1.5">
+      <span className="text-xs font-semibold text-zinc-400">{props.label}</span>
       <select
-        className="rounded-xl border border-white/10 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20"
         value={props.value}
         onChange={(e) => props.onChange(e.target.value)}
+        className="rounded-xl border border-white/10 bg-zinc-950 px-3 py-2.5 text-sm outline-none focus:border-white/20"
       >
-        {props.options.map((o) => (
-          <option key={o} value={o} className="bg-zinc-950">
-            {o}
-          </option>
+        {props.options.map((option) => (
+          <option key={option}>{option}</option>
         ))}
       </select>
     </label>
