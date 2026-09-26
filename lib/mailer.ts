@@ -61,7 +61,7 @@ export async function sendBetaEmail(payload: BetaFormPayload) {
     payload.message ?? '',
     '',
     '---',
-    'Sent from z0necontrol.com landing page',
+    'Sent from zonecontrol.io',
   ].filter(Boolean)
 
   const text = lines.join('\n')
