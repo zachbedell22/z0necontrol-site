@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 const CONTACT_EMAIL = "Z0neMaster@z0necontrol.com";
 
@@ -40,6 +40,8 @@ type RoiState = {
   laborCapturePercent: number;
   energySavingsPercent: number;
 };
+
+type NumericRoiKey = Exclude<keyof RoiState, "irrigationMode">;
 
 const DEFAULT_FORM: FormState = {
   name: "",
@@ -319,16 +321,18 @@ export default function Page() {
     }
   }
 
-  function setRoiNumber<K extends keyof RoiState>(key: K, raw: string) {
+  function setRoiNumber(key: NumericRoiKey, raw: string) {
     const parsed = Number(raw);
-    setRoi((current) => ({
-      ...current,
-      [key]: Number.isFinite(parsed) ? parsed : 0,
-    }));
+    if (!Number.isFinite(parsed)) return;
+    setRoi((current) => {
+      const next = { ...current };
+      next[key] = parsed;
+      return next;
+    });
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-zinc-950 text-zinc-50">
+    <main className="min-h-screen overflow-x-clip bg-zinc-950 text-zinc-50">
       <div className="pointer-events-none fixed inset-0 -z-10">
         <Image
           src="/brand/hero-grid.svg"
@@ -904,6 +908,29 @@ function NumberInput(props: {
   suffix?: string;
   step?: string;
 }) {
+  const [raw, setRaw] = useState(String(props.value));
+
+  useEffect(() => {
+    setRaw(String(props.value));
+  }, [props.value]);
+
+  function handleChange(next: string) {
+    setRaw(next);
+    if (next === "" || next.endsWith(".") || next === "-") return;
+    const parsed = Number(next);
+    if (Number.isFinite(parsed) && parsed >= 0) props.onChange(next);
+  }
+
+  function normalizeOnBlur() {
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed < 0 || raw.trim() === "") {
+      setRaw(String(props.value));
+      return;
+    }
+    props.onChange(raw);
+    setRaw(String(parsed));
+  }
+
   return (
     <label className="grid gap-1.5 text-sm">
       <span className="text-zinc-400">{props.label}</span>
@@ -913,8 +940,9 @@ function NumberInput(props: {
           type="number"
           min="0"
           step={props.step ?? "1"}
-          value={props.value}
-          onChange={(e) => props.onChange(e.target.value)}
+          value={raw}
+          onChange={(e) => handleChange(e.target.value)}
+          onBlur={normalizeOnBlur}
           className="min-w-0 flex-1 bg-transparent px-3 py-2.5 outline-none"
         />
         {props.suffix && <span className="pr-3 text-xs text-zinc-500">{props.suffix}</span>}
